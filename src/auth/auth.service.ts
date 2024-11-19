@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -18,9 +19,11 @@ import { nanoid } from 'nanoid';
 import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     @InjectModel(User.name) private UserModel: Model<User>,
     @InjectModel(RefreshToken.name)
@@ -31,6 +34,7 @@ export class AuthService {
     private mailService: MailService,
     private rolesService: RolesService,
   ) {}
+
 
   async signup(signupData: SignupDto) {
     const { email, password, name } = signupData;
@@ -95,47 +99,73 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    //Check that user exists
+    // Vérifier si l'utilisateur existe
     const user = await this.UserModel.findOne({ email });
-
+  
     if (user) {
-      //If user exists, generate password reset link
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 1);
+      // Si l'utilisateur existe, générer un mot de passe temporaire
+      const newPassword = this.generateRandomPassword(12);  // Vous pouvez ajuster la longueur ici
+      user.password = await bcrypt.hash(newPassword, 12);  // Changer le mot de passe de l'utilisateur
+      await user.save();
+  
+      // Envoyer le nouveau mot de passe par email
+      await this.mailService.sendPasswordResetEmail(email, newPassword);
+    }
+  
+    return { message: 'Si cet utilisateur existe, il recevra un nouvel email avec son mot de passe.' };
+  }
+  
+  private generateRandomPassword(length: number = 12): string {
+    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()';
+    let password = '';
+    const randomBytes = crypto.randomBytes(length);
+  
+    for (let i = 0; i < length; i++) {
+      password += charset[randomBytes[i] % charset.length];
+    }
+  
+    // Limiter la longueur du mot de passe généré
+    return password.slice(0, length);  // Cela garantit que la longueur du mot de passe est exactement ce que vous voulez
+  }
+  
 
-      const resetToken = nanoid(64);
-      await this.ResetTokenModel.create({
+  async resetPassword(resetToken: string) {
+    this.logger.debug('Reset password function called');
+    
+    try {
+      const token = await this.ResetTokenModel.findOneAndDelete({
         token: resetToken,
-        userId: user._id,
-        expiryDate,
+        expiryDate: { $gte: new Date() },
       });
-      //Send the link to the user by email
-      this.mailService.sendPasswordResetEmail(email, resetToken);
-    }
 
-    return { message: 'If this user exists, they will receive an email' };
+      if (!token) {
+        this.logger.warn(`Invalid or expired reset token: ${resetToken}`);
+        throw new UnauthorizedException('Invalid or expired reset link');
+      }
+
+      const user = await this.UserModel.findById(token.userId);
+      if (!user) {
+        this.logger.error(`User not found for token: ${resetToken}`);
+        throw new InternalServerErrorException('User not found');
+      }
+
+      const newPassword = this.generateRandomPassword(12);
+      this.logger.debug(`Generated new password for user: ${user.email}`);
+
+      user.password = await bcrypt.hash(newPassword, 12);
+      await user.save();
+      this.logger.debug(`New password saved for user: ${user.email}`);
+
+      await this.mailService.sendPasswordResetEmail(user.email, newPassword);
+      this.logger.debug(`Password reset email sent to: ${user.email}`);
+
+      return { message: 'A new password has been sent to your email address.' };
+    } catch (error) {
+      this.logger.error(`Error in resetPassword: ${error.message}`, error.stack);
+      throw error;
+    }
   }
-
-  async resetPassword(newPassword: string, resetToken: string) {
-    //Find a valid reset token document
-    const token = await this.ResetTokenModel.findOneAndDelete({
-      token: resetToken,
-      expiryDate: { $gte: new Date() },
-    });
-
-    if (!token) {
-      throw new UnauthorizedException('Invalid link');
-    }
-
-    //Change user password (MAKE SURE TO HASH!!)
-    const user = await this.UserModel.findById(token.userId);
-    if (!user) {
-      throw new InternalServerErrorException();
-    }
-
-    user.password = await bcrypt.hash(newPassword, 10);
-    await user.save();
-  }
+  
 
   async refreshTokens(refreshToken: string) {
     const token = await this.RefreshTokenModel.findOne({

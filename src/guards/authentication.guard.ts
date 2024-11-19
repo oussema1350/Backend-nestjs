@@ -9,9 +9,6 @@ import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
 import { Request } from 'express';
 
-interface CustomRequest extends Request {
-  userId?: string;
-}
 
 @Injectable()
 export class AuthenticationGuard implements CanActivate {

@@ -1,4 +1,3 @@
-// mail.service.ts
 import * as nodemailer from 'nodemailer';
 import { Injectable } from '@nestjs/common';
 
@@ -8,24 +7,32 @@ export class MailService {
 
   constructor() {
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.ethereal.email',
-      port: 587,
+      service: 'gmail', // Utilisez "gmail" comme service
       auth: {
-        user: 'montana.kuphal@ethereal.email',
-        pass: '6quCFvwg285c1BF1h7',
+        user: 'oussemawushu@gmail.com', // Votre adresse Gmail
+        pass: 'saxp wvgj zlfq lhcs', // Mot de passe d'application
       },
     });
   }
 
-  async sendPasswordResetEmail(to: string, token: string) {
-    const resetLink = `http://yourapp.com/reset-password?token=${token}`;
+  async sendPasswordResetEmail(to: string, newPassword: string) {
     const mailOptions = {
-      from: 'Auth-backend service',
-      to: to,
-      subject: 'Password Reset Request',
-      html: `<p>You requested a password reset. Click the link below to reset your password:</p><p><a href="${resetLink}">Reset Password</a></p>`,
+      from: 'no-reply@votresite.com', // L'email d'expéditeur
+      to, // L'email de l'utilisateur
+      subject: 'Votre nouveau mot de passe',
+      text: `Bonjour,
+  
+  Nous avons réinitialisé votre mot de passe. Votre nouveau mot de passe est le suivant : 
+  
+  ${newPassword}
+  
+  Veuillez vous connecter et changer ce mot de passe pour des raisons de sécurité.
+  
+  Cordialement,
+  L'équipe de votre application`,
     };
-
+  
+    // Utiliser le service de mail (ici avec Nodemailer)
     await this.transporter.sendMail(mailOptions);
   }
 }
