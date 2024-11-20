@@ -5,5 +5,8 @@ declare const _default: () => {
     database: {
         connectionString: string;
     };
+    azureMaps: {
+        key: string;
+    };
 };
 export default _default;
