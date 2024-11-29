@@ -22,12 +22,14 @@ const change_password_dto_1 = require("./dtos/change-password.dto");
 const authentication_guard_1 = require("../guards/authentication.guard");
 const forgot_password_dto_1 = require("./dtos/forgot-password.dto");
 const swagger_1 = require("@nestjs/swagger");
+const update_profil_dto_1 = require("./dtos/update-profil.dto");
+const platform_express_1 = require("@nestjs/platform-express");
+const multer_1 = require("multer");
+const uuid_1 = require("uuid");
+const path = require("path");
 let AuthController = class AuthController {
     constructor(authService) {
         this.authService = authService;
-    }
-    async signUp(signupData) {
-        return this.authService.signup(signupData);
     }
     async login(credentials) {
         return this.authService.login(credentials);
@@ -52,14 +54,21 @@ let AuthController = class AuthController {
             throw error;
         }
     }
+    async editProfile(updateProfileDto, req) {
+        return this.authService.updateProfile(req.userId, updateProfileDto);
+    }
+    async signupWithImage(signupDto, file) {
+        let imagePath = null;
+        if (file) {
+            imagePath = `uploads/${file.filename}`;
+            console.log(`File saved: ${imagePath}`);
+        }
+        return this.authService.signup(signupDto, imagePath);
+    }
+    async getUserProfile(req) {
+        return this.authService.getUserProfile(req.user.userId);
+    }
 };
-__decorate([
-    (0, common_1.Post)('signup'),
-    __param(0, (0, common_1.Body)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [signup_dto_1.SignupDto]),
-    __metadata("design:returntype", Promise)
-], AuthController.prototype, "signUp", null);
 __decorate([
     (0, common_1.Post)('login'),
     __param(0, (0, common_1.Body)()),
@@ -102,6 +111,55 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resetPassword", null);
+__decorate([
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Put)('edit-profile'),
+    (0, swagger_1.ApiBody)({
+        description: 'Edit user profile (name or password)',
+        type: update_profil_dto_1.UpdateProfileDto,
+    }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [update_profil_dto_1.UpdateProfileDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "editProfile", null);
+__decorate([
+    (0, common_1.Post)('signup'),
+    (0, common_1.UseInterceptors)((0, platform_express_1.FileInterceptor)('profilePicture', {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads',
+            filename: (req, file, cb) => {
+                const uniqueName = `${(0, uuid_1.v4)()}${path.extname(file.originalname)}`;
+                cb(null, uniqueName);
+            },
+        }),
+        fileFilter: (req, file, cb) => {
+            console.log(`Received file: ${JSON.stringify(file)}`);
+            if (!file) {
+                return cb(null, true);
+            }
+            if (!file.mimetype.match(/^image\/(jpg|jpeg|png|gif|webp|bmp|tiff)$/i)) {
+                return cb(new common_1.BadRequestException('Only image files are allowed!'), false);
+            }
+            cb(null, true);
+        },
+    })),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.UploadedFile)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [signup_dto_1.SignupDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "signupWithImage", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Get)('profile'),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getUserProfile", null);
 AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

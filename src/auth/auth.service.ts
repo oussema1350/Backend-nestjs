@@ -20,6 +20,7 @@ import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
 import * as crypto from 'crypto';
+import { UpdateProfileDto } from './dtos/update-profil.dto';
 
 @Injectable()
 export class AuthService {
@@ -36,8 +37,8 @@ export class AuthService {
   ) {}
 
 
-  async signup(signupData: SignupDto) {
-    const { email, password, name } = signupData;
+ /* async signup(signupData: SignupDto) {
+    const { email, password, name} = signupData;
 
     //Check if email is in use
     const emailInUse = await this.UserModel.findOne({
@@ -51,12 +52,57 @@ export class AuthService {
 
     // Create user document and save in mongodb
     await this.UserModel.create({
-      name,
+      name, 
       email,
       password: hashedPassword,
     });
+  }*/
+  async signup(signupData: SignupDto, profilePicturePath?: string) {
+    const { email, password, name } = signupData;
+  
+    // Check if email is already in use
+    const emailInUse = await this.UserModel.findOne({ email });
+    if (emailInUse) {
+      throw new BadRequestException('Email already in use');
+    }
+  
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+  
+    // Create user document with optional profile picture
+    const user = new this.UserModel({
+      name,
+      email,
+      password: hashedPassword,
+      profilePicture: profilePicturePath || null, // Use the provided path or set to null
+    });
+  
+    await user.save();
+  
+    return {
+      message: 'User created successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+      },
+    };
   }
 
+  async getUserProfile(userId: string) {
+    const user = await this.UserModel.findById(userId).select('-password');
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return {
+      name: user.name,
+      email: user.email,
+      profilePictureUrl: user.profilePicture ? `${process.env.API_URL}/${user.profilePicture}` : null
+    };
+  }
+    
+    
   async login(credentials: LoginDto) {
     const { email, password } = credentials;
     //Find if user exists by email
@@ -77,6 +123,42 @@ export class AuthService {
       ...tokens,
       userId: user._id,
     };
+  }
+  async refreshTokens(refreshToken: string) {
+    const token = await this.RefreshTokenModel.findOne({
+      token: refreshToken,
+      expiryDate: { $gte: new Date() },
+    });
+
+    if (!token) {
+      throw new UnauthorizedException('Refresh Token is invalid');
+    }
+    return this.generateUserTokens(token.userId);
+  }
+
+  async generateUserTokens(userId) {
+    const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
+    const refreshToken = uuidv4();
+
+    await this.storeRefreshToken(refreshToken, userId);
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async storeRefreshToken(token: string, userId: string) {
+    // Calculate expiry date 3 days from now
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 3);
+
+    await this.RefreshTokenModel.updateOne(
+      { userId },
+      { $set: { expiryDate, token } },
+      {
+        upsert: true,
+      },
+    );
   }
 
   async changePassword(userId, oldPassword: string, newPassword: string) {
@@ -167,43 +249,6 @@ export class AuthService {
   }
   
 
-  async refreshTokens(refreshToken: string) {
-    const token = await this.RefreshTokenModel.findOne({
-      token: refreshToken,
-      expiryDate: { $gte: new Date() },
-    });
-
-    if (!token) {
-      throw new UnauthorizedException('Refresh Token is invalid');
-    }
-    return this.generateUserTokens(token.userId);
-  }
-
-  async generateUserTokens(userId) {
-    const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
-    const refreshToken = uuidv4();
-
-    await this.storeRefreshToken(refreshToken, userId);
-    return {
-      accessToken,
-      refreshToken,
-    };
-  }
-
-  async storeRefreshToken(token: string, userId: string) {
-    // Calculate expiry date 3 days from now
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 3);
-
-    await this.RefreshTokenModel.updateOne(
-      { userId },
-      { $set: { expiryDate, token } },
-      {
-        upsert: true,
-      },
-    );
-  }
-
   async getUserPermissions(userId: string) {
     const user = await this.UserModel.findById(userId);
 
@@ -212,4 +257,29 @@ export class AuthService {
     const role = await this.rolesService.getRoleById(user.roleId.toString());
     return role.permissions;
   }
+  async updateProfile(userId: string, updateProfileDto: UpdateProfileDto) {
+    const { name, oldPassword, newPassword } = updateProfileDto;
+  
+    // Fetch the user from the database
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+  
+    // Update the name if provided
+    if (name) {
+      user.name = name;
+      await user.save();
+    }
+  
+    // Update the password if both old and new passwords are provided
+    if (oldPassword && newPassword) {
+      await this.changePassword(userId, oldPassword, newPassword);
+    }
+  
+    // Return the updated user (excluding sensitive information like the password)
+    return user.toObject({ versionKey: false, transform: (_, ret) => { delete ret.password; } });
+  }
+  
+  
 }

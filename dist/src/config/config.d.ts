@@ -8,5 +8,9 @@ declare const _default: () => {
     azureMaps: {
         key: string;
     };
+    throttle: {
+        ttl: number;
+        limit: number;
+    };
 };
 export default _default;

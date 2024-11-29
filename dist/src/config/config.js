@@ -10,5 +10,9 @@ exports.default = () => ({
     azureMaps: {
         key: process.env.AZURE_MAPS_KEY,
     },
+    throttle: {
+        ttl: 60,
+        limit: 10,
+    },
 });
 //# sourceMappingURL=config.js.map

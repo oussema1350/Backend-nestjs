@@ -7,6 +7,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RolesModule } from './roles/roles.module';
 import { AzureMapsModule } from './azure-maps/azure-maps.module';
+import { CropManagementModule } from './crop-management/crop-management.module';
+import { ThrottlerModule } from '@nestjs/throttler';
+import { AzureMlModule } from './azure-ml/azure-ml.module';
+
 import config from './config/config';
 
 @Module({
@@ -24,6 +28,7 @@ import config from './config/config';
       global: true,
       inject: [ConfigService],
     }),
+  
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config) => ({
@@ -34,6 +39,8 @@ import config from './config/config';
     AuthModule,
     RolesModule,
     AzureMapsModule,
+    CropManagementModule,
+    AzureMlModule,
   ],
   controllers: [AppController],
   providers: [AppService],

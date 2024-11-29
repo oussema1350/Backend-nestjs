@@ -14,6 +14,9 @@ export class User extends Document {
 
   @Prop({ required: false, type: SchemaTypes.ObjectId })
   roleId: Types.ObjectId;
+
+  @Prop({ required: false })
+  profilePicture: string;  
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

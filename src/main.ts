@@ -33,7 +33,7 @@ async function bootstrap() {
     SwaggerModule.setup('api', app, document); // Swagger UI available at /api
     logger.log('Swagger documentation set up at /api');
 
-    await app.listen(3000);
+    await app.listen(3000,"0.0.0.0");
     logger.log('Application is listening on port 3000');
   } catch (error) {
     const logger = new Logger('Bootstrap');

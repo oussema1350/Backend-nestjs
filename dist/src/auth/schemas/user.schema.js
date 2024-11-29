@@ -30,6 +30,10 @@ __decorate([
     (0, mongoose_1.Prop)({ required: false, type: mongoose_2.SchemaTypes.ObjectId }),
     __metadata("design:type", mongoose_2.Types.ObjectId)
 ], User.prototype, "roleId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], User.prototype, "profilePicture", void 0);
 User = __decorate([
     (0, mongoose_1.Schema)()
 ], User);

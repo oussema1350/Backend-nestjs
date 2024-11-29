@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.Resource = void 0;
 var Resource;
 (function (Resource) {
+    Resource["CropRecommendation"] = "crop-recommendation";
     Resource["settings"] = "settings";
     Resource["products"] = "products";
     Resource["users"] = "users";

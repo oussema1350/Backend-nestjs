@@ -16,6 +16,8 @@ const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const roles_module_1 = require("./roles/roles.module");
 const azure_maps_module_1 = require("./azure-maps/azure-maps.module");
+const crop_management_module_1 = require("./crop-management/crop-management.module");
+const azure_ml_module_1 = require("./azure-ml/azure-ml.module");
 const config_2 = require("./config/config");
 let AppModule = class AppModule {
 };
@@ -45,6 +47,8 @@ AppModule = __decorate([
             auth_module_1.AuthModule,
             roles_module_1.RolesModule,
             azure_maps_module_1.AzureMapsModule,
+            crop_management_module_1.CropManagementModule,
+            azure_ml_module_1.AzureMlModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

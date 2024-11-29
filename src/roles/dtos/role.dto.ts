@@ -16,7 +16,10 @@ export class CreateRoleDto {
   @Type(() => Permission)
   permissions: Permission[];
 }
-
+export interface Permission {
+  actions: Action[];
+  resource: Resource;
+}
 export class Permission {
   @IsEnum(Resource)
   resource: Resource;

@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery } from '@nestjs/swagger';
+// azure-maps.controller.ts
+import { Controller, Get } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { AzureMapsService } from './azure-maps.service';
 
 @ApiTags('weather')
@@ -11,14 +12,15 @@ export class AzureMapsController {
   @ApiOperation({ summary: 'Get weather forecast for a location' })
   @ApiResponse({ status: 200, description: 'Weather data retrieved successfully.' })
   @ApiResponse({ status: 400, description: 'Bad Request, invalid coordinates.' })
-  @ApiQuery({ name: 'lat', required: true, description: 'Latitude of the location', type: Number })
-  @ApiQuery({ name: 'lng', required: true, description: 'Longitude of the location', type: Number })
-  async getWeather(
-    @Query('lat') lat: number,
-    @Query('lng') lng: number,
-  ) {
+  async getWeather() {
     try {
-      const weatherData = await this.azureMapsService.getWeather(lat, lng);
+      // Default coordinates (if no parameters are provided)
+      const defaultLat = 36.8189;
+      const defaultLng = 10.1658;
+
+      // Fetch weather data using the default coordinates
+      const weatherData = await this.azureMapsService.getWeather(defaultLat, defaultLng);
+
       return weatherData;
     } catch (error) {
       // Log the error for debugging

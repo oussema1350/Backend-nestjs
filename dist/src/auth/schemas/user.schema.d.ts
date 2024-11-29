@@ -29,6 +29,7 @@ export declare class User extends Document {
     email: string;
     password: string;
     roleId: Types.ObjectId;
+    profilePicture: string;
 }
 export declare const UserSchema: import("mongoose").Schema<User, import("mongoose").Model<User, any, any, any, Document<unknown, any, User> & User & Required<{
     _id: unknown;

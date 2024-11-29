@@ -36,20 +36,40 @@ let AuthService = AuthService_1 = class AuthService {
         this.rolesService = rolesService;
         this.logger = new common_1.Logger(AuthService_1.name);
     }
-    async signup(signupData) {
+    async signup(signupData, profilePicturePath) {
         const { email, password, name } = signupData;
-        const emailInUse = await this.UserModel.findOne({
-            email,
-        });
+        const emailInUse = await this.UserModel.findOne({ email });
         if (emailInUse) {
             throw new common_1.BadRequestException('Email already in use');
         }
         const hashedPassword = await bcrypt.hash(password, 10);
-        await this.UserModel.create({
+        const user = new this.UserModel({
             name,
             email,
             password: hashedPassword,
+            profilePicture: profilePicturePath || null,
         });
+        await user.save();
+        return {
+            message: 'User created successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                profilePicture: user.profilePicture,
+            },
+        };
+    }
+    async getUserProfile(userId) {
+        const user = await this.UserModel.findById(userId).select('-password');
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        return {
+            name: user.name,
+            email: user.email,
+            profilePictureUrl: user.profilePicture ? `${process.env.API_URL}/${user.profilePicture}` : null
+        };
     }
     async login(credentials) {
         const { email, password } = credentials;
@@ -63,6 +83,32 @@ let AuthService = AuthService_1 = class AuthService {
         }
         const tokens = await this.generateUserTokens(user._id);
         return Object.assign(Object.assign({}, tokens), { userId: user._id });
+    }
+    async refreshTokens(refreshToken) {
+        const token = await this.RefreshTokenModel.findOne({
+            token: refreshToken,
+            expiryDate: { $gte: new Date() },
+        });
+        if (!token) {
+            throw new common_1.UnauthorizedException('Refresh Token is invalid');
+        }
+        return this.generateUserTokens(token.userId);
+    }
+    async generateUserTokens(userId) {
+        const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
+        const refreshToken = (0, uuid_1.v4)();
+        await this.storeRefreshToken(refreshToken, userId);
+        return {
+            accessToken,
+            refreshToken,
+        };
+    }
+    async storeRefreshToken(token, userId) {
+        const expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + 3);
+        await this.RefreshTokenModel.updateOne({ userId }, { $set: { expiryDate, token } }, {
+            upsert: true,
+        });
     }
     async changePassword(userId, oldPassword, newPassword) {
         const user = await this.UserModel.findById(userId);
@@ -126,38 +172,27 @@ let AuthService = AuthService_1 = class AuthService {
             throw error;
         }
     }
-    async refreshTokens(refreshToken) {
-        const token = await this.RefreshTokenModel.findOne({
-            token: refreshToken,
-            expiryDate: { $gte: new Date() },
-        });
-        if (!token) {
-            throw new common_1.UnauthorizedException('Refresh Token is invalid');
-        }
-        return this.generateUserTokens(token.userId);
-    }
-    async generateUserTokens(userId) {
-        const accessToken = this.jwtService.sign({ userId }, { expiresIn: '10h' });
-        const refreshToken = (0, uuid_1.v4)();
-        await this.storeRefreshToken(refreshToken, userId);
-        return {
-            accessToken,
-            refreshToken,
-        };
-    }
-    async storeRefreshToken(token, userId) {
-        const expiryDate = new Date();
-        expiryDate.setDate(expiryDate.getDate() + 3);
-        await this.RefreshTokenModel.updateOne({ userId }, { $set: { expiryDate, token } }, {
-            upsert: true,
-        });
-    }
     async getUserPermissions(userId) {
         const user = await this.UserModel.findById(userId);
         if (!user)
             throw new common_1.BadRequestException();
         const role = await this.rolesService.getRoleById(user.roleId.toString());
         return role.permissions;
+    }
+    async updateProfile(userId, updateProfileDto) {
+        const { name, oldPassword, newPassword } = updateProfileDto;
+        const user = await this.UserModel.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        if (name) {
+            user.name = name;
+            await user.save();
+        }
+        if (oldPassword && newPassword) {
+            await this.changePassword(userId, oldPassword, newPassword);
+        }
+        return user.toObject({ versionKey: false, transform: (_, ret) => { delete ret.password; } });
     }
 };
 AuthService = AuthService_1 = __decorate([

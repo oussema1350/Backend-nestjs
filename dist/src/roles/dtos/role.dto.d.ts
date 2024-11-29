@@ -4,6 +4,10 @@ export declare class CreateRoleDto {
     name: string;
     permissions: Permission[];
 }
+export interface Permission {
+    actions: Action[];
+    resource: Resource;
+}
 export declare class Permission {
     resource: Resource;
     actions: Action[];

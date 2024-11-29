@@ -27,5 +27,10 @@ __decorate([
     (0, class_validator_1.Matches)(/^(?=.*[0-9])/, { message: 'Password must contain at least one number' }),
     __metadata("design:type", String)
 ], SignupDto.prototype, "password", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], SignupDto.prototype, "profilePicture", void 0);
 exports.SignupDto = SignupDto;
 //# sourceMappingURL=signup.dto.js.map
